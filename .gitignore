@@ -1,0 +1,6 @@
+*.log
+__pycache__/
+*.vvp
+sim_build/
+.vscode/
+*.xml
