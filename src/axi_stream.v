@@ -3,7 +3,7 @@
  * If we blindly blast data into the buffer, we run the risk of overwriting data
  * But we also need the interface to not bottleneck the system such that we can actually sense the real performance of the systolic array
  * 
- * AXI-stream is a simply interface that solves this coordination
+ * AXI-stream is a simple interface that solves this coordination
  * It uses a handshake between producer and consumer to initiate data transfer
  * Producer and consumer share a clk and reset
  * The source produces the TVALID and TDATA signals 
@@ -12,126 +12,136 @@
  * If the consumer isn't ready, it keeps tready low. If the producer isn't ready then it keeps tvalid low.
 */
 `timescale 1ns/1ps
-/*
- * AXI-Stream Input Interface
- * Captures data from an upstream AXI master and presents it to the internal logic (Input Buffer).
- * Implements a simple register slice to decouple timing.
- */
+
+
+//axi-stream slave
 module axi_stream_input #(
     parameter N = 4,
     parameter data_width = 8
 )(
     input wire clk,
     input wire reset,
-    
-    // AXI4-Stream Slave Interface
     input wire [N*data_width-1:0] tdata,
     input wire tvalid,
-    output reg tready,
-
-    // Internal Interface (Source to Input Buffer)
-    output reg [N*data_width-1:0] col_bus,
-    output reg col_valid,
-    input wire col_ready
+    output wire tready,
+    output reg [N*data_width-1:0] inbuf_bus,
+    output reg inbuf_valid,
+    input wire inbuf_ready
 );
+    //we are ready to accept data if our data is not valid
+    //or if input buffer is ready/enabled
+    assign tready = ~inbuf_valid || inbuf_ready;
 
-    // Internal storage
-    reg [N*data_width-1:0] internal_data;
-    reg internal_valid;
-
-    /* * AXI Handshake Logic:
-     * We are ready to accept new data if:
-     * 1. We don't have valid data currently holding (internal_valid == 0)
-     * 2. OR, the downstream logic (Input Buffer) is ready to accept our holding data
-     */
-    always @(*) begin
-        tready = (~internal_valid) || col_ready;
-    end
-
-    /*
-     * Data Path & Valid Logic
-     */
     always @(posedge clk) begin
         if (reset) begin
-            internal_valid <= 1'b0;
-            internal_data <= 'b0;
-        end else begin
-            // Load internal register if we are ready and source is valid
+            inbuf_valid <= 1'b0;
+            inbuf_bus <= {N*data_width{1'b0}};
+        end 
+        else begin
             if (tready && tvalid) begin
-                internal_data <= tdata;
-                internal_valid <= 1'b1;
+                inbuf_bus <= tdata;
+                inbuf_valid <= 1'b1;
             end 
-            // Clear valid if downstream accepts the data and we don't have new data incoming
-            else if (col_ready) begin
-                internal_valid <= 1'b0; 
+            else if (inbuf_ready) begin
+                inbuf_valid <= 1'b0; 
             end
         end
     end
-
-    // Connect internal registers to output ports
-    always @(*) begin
-        col_bus = internal_data;
-        col_valid = internal_valid;
-    end
-
 endmodule
 
 
-/*
- * AXI-Stream Output Interface
- * Takes data from internal logic (Output Buffer) and streams it to a downstream AXI slave.
- */
+// AXI-stream master
 module axi_stream_output #(
     parameter N = 4,
     parameter result_width = 32
 )(
     input wire clk,
     input wire reset,
-
-    // Internal Interface (Sink from Output Buffer)
-    input wire [N*result_width-1:0] row_bus,
-    input wire row_valid,
-    output reg row_ready,
-
-    // AXI4-Stream Master Interface
+    input wire [N*result_width-1:0] out_buff_data,
+    input wire out_buff_enabled,
+    output wire out_buff_enable_feedback,
     output reg [N*result_width-1:0] tdata,
     output reg tvalid,
     input wire tready
 );
+    // we accept the output buffer data if our tdata is invalid or if the slave is ready
+    // otherwise, we don't latch new values into the tdata registers
+    wire transaction_ready;
+    assign transaction_ready = (tready || !tvalid);
 
-    /*
-     * Handshake Logic:
-     * We are ready to accept from internal logic if:
-     * 1. We aren't currently trying to send data (tvalid == 0)
-     * 2. OR, the downstream AXI slave is accepting our current data (tready == 1)
-     */
-    always @(*) begin
-        row_ready = (~tvalid) || tready;
-    end
+    //feedback enable signal to the system
+    //if the axi slave is not ready to accept data, then the system must pause 
+    assign out_buff_enable_feedback = transaction_ready;
 
-    /*
-     * Data Path
-     */
     always @(posedge clk) begin
         if (reset) begin
             tvalid <= 1'b0;
-            tdata <= 'b0;
-        end else begin
-            // If we are ready and upstream has data, latch it
-            if (row_ready && row_valid) begin
-                tvalid <= 1'b1;
-                tdata <= row_bus;
-            end 
-            // If downstream accepts data, and we didn't just latch new data, clear valid
-            else if (tready) begin
-                tvalid <= 1'b0;
+            tdata <= 'b0; 
+        end
+        else begin
+            if (transaction_ready) begin
+                tvalid <= out_buff_enabled;     //tvalid mirrors output buffer valid signal on next cycle
+                if (out_buff_enabled) begin     //latch in data if the output buffer is enabled
+                    tdata <= out_buff_data;
+                end
             end
         end
     end
-
 endmodule
 
 
+/*
+ * For testing purposes only
+ * A top level wrapper to verify the axi_stream logic using both
+ * the master and slave implementations in communication with each
+ * testbench serves as datafeed to master and monitors the slave output
+*/
 
-    
+module axi_stream_wrapper #(
+    parameter N = 4,
+    parameter DATA_WIDTH = 8
+)(
+    input wire clk,
+    input wire reset,
 
+    input wire [N*DATA_WIDTH-1:0] outbuf_data,
+    input wire outbuf_valid,
+    output wire outbuf_ready,    
+
+    output wire [N*DATA_WIDTH-1:0] inbuf_data,
+    output wire inbuf_valid,
+    input wire inbuf_ready
+);
+
+    wire [N*DATA_WIDTH-1:0] tdata;
+    wire tvalid;
+    wire tready;
+
+    axi_stream_output #(
+        .N(N),
+        .result_width(DATA_WIDTH)
+    ) master_inst (
+        .clk(clk),
+        .reset(reset),
+        .out_buff_data(outbuf_data),
+        .out_buff_enabled(outbuf_valid),
+        .out_buff_enable_feedback(outbuf_ready),
+        .tdata(tdata),
+        .tvalid(tvalid),
+        .tready(tready)
+    );
+
+    axi_stream_input #(
+        .N(N),
+        .data_width(DATA_WIDTH)
+    ) slave_inst (
+        .clk(clk),
+        .reset(reset),
+        .tdata(tdata),
+        .tvalid(tvalid),
+        .tready(tready),
+        .inbuf_bus(inbuf_data),
+        .inbuf_valid(inbuf_valid),
+        .inbuf_ready(inbuf_ready)
+    );
+endmodule

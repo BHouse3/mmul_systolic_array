@@ -9,7 +9,7 @@
    The second column output needs to be passed through N-2 delay registers
    The last column output can be passed through
  */
-module deskew_buffer #(
+module output_buffer #(
     parameter N = 4,
     parameter result_width = 32
 )(
