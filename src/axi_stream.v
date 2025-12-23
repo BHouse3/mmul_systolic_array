@@ -17,14 +17,14 @@
 //axi-stream slave
 module axi_stream_input #(
     parameter N = 4,
-    parameter data_width = 8
+    parameter DATA_WIDTH = 8
 )(
     input wire clk,
     input wire reset,
-    input wire [N*data_width-1:0] tdata,
+    input wire [N*DATA_WIDTH-1:0] tdata,
     input wire tvalid,
     output wire tready,
-    output reg [N*data_width-1:0] inbuf_bus,
+    output reg [N*DATA_WIDTH-1:0] inbuf_bus,
     output reg inbuf_valid,
     input wire inbuf_ready
 );
@@ -35,7 +35,7 @@ module axi_stream_input #(
     always @(posedge clk) begin
         if (reset) begin
             inbuf_valid <= 1'b0;
-            inbuf_bus <= {N*data_width{1'b0}};
+            inbuf_bus <= {N*DATA_WIDTH{1'b0}};
         end 
         else begin
             if (tready && tvalid) begin

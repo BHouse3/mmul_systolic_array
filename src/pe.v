@@ -8,26 +8,26 @@
 * 6. Pass the new sum below
 */
 module pe #(
-    parameter data_width = 8,  
-    parameter result_width = 32 
+    parameter DATA_WIDTH = 8,  
+    parameter RESULT_WIDTH = 32 
 )(
     input wire clk,
     input wire reset,
     input wire enable, 
     input wire load_weight,
-    input wire [data_width-1:0] activ_input,  
-    input wire [result_width-1:0] top_sum_input, 
-    output reg [data_width-1:0] activ_output,  
-    output reg [result_width-1:0] sum_output
+    input wire [DATA_WIDTH-1:0] activ_input,  
+    input wire [RESULT_WIDTH-1:0] top_sum_input, 
+    output reg [DATA_WIDTH-1:0] activ_output,  
+    output reg [RESULT_WIDTH-1:0] sum_output
 );
 
-    reg [data_width-1:0] weight_reg;
+    reg [DATA_WIDTH-1:0] weight_reg;
 
     always @(posedge clk) begin
         if (reset) begin
-            weight_reg <= {data_width{1'b0}};
-            activ_output <= {data_width{1'b0}};
-            sum_output <= {result_width{1'b0}};
+            weight_reg <= {DATA_WIDTH{1'b0}};
+            activ_output <= {DATA_WIDTH{1'b0}};
+            sum_output <= {RESULT_WIDTH{1'b0}};
         end 
         else if (enable) begin 
             if (load_weight) begin

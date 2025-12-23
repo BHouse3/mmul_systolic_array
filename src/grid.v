@@ -3,19 +3,19 @@
 */
 module grid #(
     parameter N = 4,
-    parameter data_width = 8,
-    parameter result_width = 32
+    parameter DATA_WIDTH = 8,
+    parameter RESULT_WIDTH = 32
 )(
     input wire clk,
     input wire reset,
     input wire enable,
     input wire load_weight,
-    input wire [data_width-1:0] inputs_left [0:N-1],     
-    output wire [result_width-1:0] sums_bottom [0:N-1]     
+    input wire [DATA_WIDTH-1:0] inputs_left [0:N-1],     
+    output wire [RESULT_WIDTH-1:0] sums_bottom [0:N-1]     
 );  
     //assign the top level wires to the interconnect wires that will be used to instantiate the grid
-    wire [data_width-1:0] data_path_wires [0:N][0:N]; 
-    wire [result_width-1:0] sum_path_wires [0:N][0:N];
+    wire [DATA_WIDTH-1:0] data_path_wires [0:N][0:N]; 
+    wire [RESULT_WIDTH-1:0] sum_path_wires [0:N][0:N];
     genvar i, j;
     generate
         for (i = 0; i < N; i = i + 1) begin : drive_left
@@ -33,8 +33,8 @@ module grid #(
         for (i = 0; i < N; i = i + 1) begin : rows
             for (j = 0; j < N; j = j + 1) begin : cols
                 pe #(
-                    .data_width(data_width),
-                    .result_width(result_width)
+                    .DATA_WIDTH(DATA_WIDTH),
+                    .RESULT_WIDTH(RESULT_WIDTH)
                 ) pe_inst (
                     .clk(clk),
                     .reset(reset),

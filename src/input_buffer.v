@@ -18,22 +18,22 @@
  */
 module input_buffer #(
     parameter N = 4,
-    parameter data_width = 8
+    parameter DATA_WIDTH = 8
 )(
     input wire clk,
     input wire reset,
     input wire enable,
-    input wire [N*data_width-1:0] streamed_input,
-    // output wire [N*data_width-1:0] skewed_output 
-    output wire [data_width-1:0] skewed_output [0:N-1]
+    input wire [N*DATA_WIDTH-1:0] streamed_input,
+    // output wire [N*DATA_WIDTH-1:0] skewed_output 
+    output wire [DATA_WIDTH-1:0] skewed_output [0:N-1]
 );
 
     //unpack the streamed input (assign each section of the data to a row index)
-    wire [data_width-1:0] in_rows [0:N-1];
+    wire [DATA_WIDTH-1:0] in_rows [0:N-1];
     genvar i,j;
     generate
         for (i = 0; i < N; i = i + 1) begin : unpack_in
-            assign in_rows[i] = streamed_input[(i*data_width) +: data_width];
+            assign in_rows[i] = streamed_input[(i*DATA_WIDTH) +: DATA_WIDTH];
         end
     endgenerate
 
@@ -42,16 +42,16 @@ module input_buffer #(
     generate
         for (i=0; i < N; i = i+1) begin : row
             for (j=0; j < i; j = j+1) begin : stage
-                reg [data_width-1:0] delay;
+                reg [DATA_WIDTH-1:0] delay;
                 if (j==0) begin
                     always @(posedge clk ) begin
-                        if (reset) delay <= {data_width{1'b0}};
+                        if (reset) delay <= {DATA_WIDTH{1'b0}};
                         else if (enable) delay <= in_rows[i];
                     end
                 end 
                 else begin
                     always @(posedge clk ) begin
-                        if (reset) delay <= {data_width{1'b0}};
+                        if (reset) delay <= {DATA_WIDTH{1'b0}};
                         else if (enable) delay <= row[i].stage[j-1].delay;
                     end
                 end
@@ -59,9 +59,9 @@ module input_buffer #(
 
             // output register for each row
             //updates on the clk which enforces alignment to the clk signal
-            reg [data_width-1:0] output_reg;
+            reg [DATA_WIDTH-1:0] output_reg;
             always @(posedge clk) begin
-                if (reset) output_reg <= {data_width{1'b0}};
+                if (reset) output_reg <= {DATA_WIDTH{1'b0}};
                 else if (enable) begin
                     if (i==0) output_reg <= in_rows[0]; //top row has no delay and is sent on the 
                     else output_reg <= row[i].stage[i-1].delay;
