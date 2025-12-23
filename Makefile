@@ -26,5 +26,4 @@ COCOTB_TEST_MODULES   := test.test_$(dut)
 WAVES = 1
 WAVE_FORMAT = fst
 
-# 5. Include the Cocotb makefile
 include $(shell cocotb-config --makefiles)/Makefile.sim

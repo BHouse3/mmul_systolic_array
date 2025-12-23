@@ -50,7 +50,7 @@ module axi_stream_input #(
 endmodule
 
 
-// AXI-stream master
+// axi-stream master
 module axi_stream_output #(
     parameter N = 4,
     parameter result_width = 32
@@ -76,14 +76,17 @@ module axi_stream_output #(
     always @(posedge clk) begin
         if (reset) begin
             tvalid <= 1'b0;
-            tdata <= 'b0; 
-        end
+            tdata  <= {N*result_width{1'b0}};
+        end 
         else begin
-            if (transaction_ready) begin
-                tvalid <= out_buff_enabled;     //tvalid mirrors output buffer valid signal on next cycle
-                if (out_buff_enabled) begin     //latch in data if the output buffer is enabled
-                    tdata <= out_buff_data;
-                end
+            // clear the valid when the handshake occurs
+            if (tvalid && tready) begin
+                tvalid <= 1'b0;
+            end
+            //accept data if the buffer is enabled or we are ready to accept
+            if (transaction_ready && out_buff_enabled) begin
+                tdata  <= out_buff_data;
+                tvalid <= 1'b1; 
             end
         end
     end
