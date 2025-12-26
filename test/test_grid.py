@@ -34,18 +34,25 @@ def skew_activations(A, N):
     return skewed_stream
 
 async def drive_inputs(dut, input_vector, n, width):
+    #pack the vector into one large input
+    flat_val = 0
     for i in range(n):
-        val = to_unsigned(input_vector[i], width)
-        dut.inputs_left[i].value = val
+        val = int(input_vector[i])
+        flat_val |= (val & ((1 << width) - 1)) << (i * width)    
+    dut.inputs_left.value = flat_val
 
 def read_outputs(dut, n, width):
     res = []
+    try:
+        flat_val = dut.sums_bottom.value.to_unsigned()
+    except ValueError:
+        return [0] * n
+    single_element_mask = (1 << width) - 1
     for i in range(n):
-        try:
-            val = dut.sums_bottom[i].value.to_unsigned()
-            res.append(to_signed(val, width))
-        except ValueError:
-            res.append(0)
+        shifted_val = flat_val >> (i * width)
+        val = shifted_val & single_element_mask
+        res.append(to_signed(val, width))
+        
     return res
 
 # ==============================================================================

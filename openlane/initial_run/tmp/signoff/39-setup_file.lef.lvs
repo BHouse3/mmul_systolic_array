@@ -1,0 +1,1 @@
+lvs {/openlane/designs/tpu/runs/init/results/signoff/top_hardened.spice top_hardened} {/openlane/designs/tpu/runs/init/tmp/signoff/36-top_hardened.pnl.v top_hardened} /home/benja/.ciel/sky130A/libs.tech/netgen/sky130A_setup.tcl /openlane/designs/tpu/runs/init/logs/signoff/39-top_hardened.lef.lvs.log -json

@@ -16,6 +16,64 @@
     The next row has to go through 1 shift register
     The last row has to go through N-1 shift registers
  */
+// `timescale 1ns/1ps
+
+// module input_buffer #(
+//     parameter N = 4,
+//     parameter DATA_WIDTH = 8
+// )(
+//     input wire clk,
+//     input wire reset,
+//     input wire enable,
+//     input wire [N*DATA_WIDTH-1:0] streamed_input,
+//     output wire [DATA_WIDTH-1:0] skewed_output [0:N-1]
+// );
+
+//     // Unpack the streamed input
+//     wire [DATA_WIDTH-1:0] in_rows [0:N-1];
+//     genvar i;
+//     generate
+//         for (i = 0; i < N; i = i + 1) begin : unpack_in
+//             assign in_rows[i] = streamed_input[(i*DATA_WIDTH) +: DATA_WIDTH];
+//         end
+//     endgenerate
+
+//     generate
+//         for (i = 0; i < N; i = i + 1) begin : row
+//             reg [DATA_WIDTH-1:0] output_reg;
+//             if (i == 0) begin : no_delay
+//                 always @(posedge clk) begin
+//                     if (reset) output_reg <= {DATA_WIDTH{1'b0}};
+//                     else if (enable) output_reg <= in_rows[i];
+//                 end
+//             end 
+//             else begin : has_delay
+//                 reg [DATA_WIDTH-1:0] shift_reg [0:i-1];
+//                 integer k;
+
+//                 always @(posedge clk) begin
+//                     if (reset) begin
+//                         output_reg <= {DATA_WIDTH{1'b0}};
+//                         for (k = 0; k < i; k = k + 1) begin
+//                             shift_reg[k] <= {DATA_WIDTH{1'b0}};
+//                         end
+//                     end 
+//                     else if (enable) begin
+//                         shift_reg[0] <= in_rows[i];
+//                         for (k = 1; k < i; k = k + 1) begin
+//                             shift_reg[k] <= shift_reg[k-1];
+//                         end
+//                         output_reg <= shift_reg[i-1];
+//                     end
+//                 end
+//             end            
+//             assign skewed_output[i] = output_reg;
+//         end
+//     endgenerate
+// endmodule
+
+`timescale 1ns/1ps
+
 module input_buffer #(
     parameter N = 4,
     parameter DATA_WIDTH = 8
@@ -24,50 +82,44 @@ module input_buffer #(
     input wire reset,
     input wire enable,
     input wire [N*DATA_WIDTH-1:0] streamed_input,
-    // output wire [N*DATA_WIDTH-1:0] skewed_output 
-    output wire [DATA_WIDTH-1:0] skewed_output [0:N-1]
+    output wire [N*DATA_WIDTH-1:0] skewed_output
 );
 
-    //unpack the streamed input (assign each section of the data to a row index)
-    wire [DATA_WIDTH-1:0] in_rows [0:N-1];
-    genvar i,j;
+    genvar i;
     generate
-        for (i = 0; i < N; i = i + 1) begin : unpack_in
-            assign in_rows[i] = streamed_input[(i*DATA_WIDTH) +: DATA_WIDTH];
-        end
-    endgenerate
-
-    //create delay registers
-    //number of delay stages matches the row index
-    generate
-        for (i=0; i < N; i = i+1) begin : row
-            for (j=0; j < i; j = j+1) begin : stage
-                reg [DATA_WIDTH-1:0] delay;
-                if (j==0) begin
-                    always @(posedge clk ) begin
-                        if (reset) delay <= {DATA_WIDTH{1'b0}};
-                        else if (enable) delay <= in_rows[i];
-                    end
-                end 
-                else begin
-                    always @(posedge clk ) begin
-                        if (reset) delay <= {DATA_WIDTH{1'b0}};
-                        else if (enable) delay <= row[i].stage[j-1].delay;
-                    end
-                end
-            end
-
-            // output register for each row
-            //updates on the clk which enforces alignment to the clk signal
+        for (i = 0; i < N; i = i + 1) begin : row
             reg [DATA_WIDTH-1:0] output_reg;
-            always @(posedge clk) begin
-                if (reset) output_reg <= {DATA_WIDTH{1'b0}};
-                else if (enable) begin
-                    if (i==0) output_reg <= in_rows[0]; //top row has no delay and is sent on the 
-                    else output_reg <= row[i].stage[i-1].delay;
+            wire [DATA_WIDTH-1:0] row_input;
+            
+            assign row_input = streamed_input[(i*DATA_WIDTH) +: DATA_WIDTH];
+
+            if (i == 0) begin : no_delay
+                always @(posedge clk) begin
+                    if (reset) output_reg <= {DATA_WIDTH{1'b0}};
+                    else if (enable) output_reg <= row_input;
+                end
+            end 
+            else begin : has_delay
+                reg [DATA_WIDTH-1:0] shift_reg [0:i-1];
+                integer k;
+
+                always @(posedge clk) begin
+                    if (reset) begin
+                        output_reg <= {DATA_WIDTH{1'b0}};
+                        for (k = 0; k < i; k = k + 1) begin
+                            shift_reg[k] <= {DATA_WIDTH{1'b0}};
+                        end
+                    end 
+                    else if (enable) begin
+                        shift_reg[0] <= row_input;
+                        for (k = 1; k < i; k = k + 1) begin
+                            shift_reg[k] <= shift_reg[k-1];
+                        end
+                        output_reg <= shift_reg[i-1];
+                    end
                 end
             end
-            assign skewed_output[i] = output_reg;
+            assign skewed_output[(i*DATA_WIDTH) +: DATA_WIDTH] = output_reg;
         end
     endgenerate
 endmodule

@@ -3,9 +3,31 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
 import random
 
-def send_input(dut, vals, N):
-    for i in range(N):
-        dut.col_input[i].value = vals[i]
+def pack_input(row_values, n, width):
+    flat_val = 0
+    mask = (1 << width) - 1
+    for i in range(n):
+        val = row_values[i] & mask
+        flat_val |= (val << (i * width))
+    return flat_val
+
+def read_skewed_output(dut, n, width):
+    res = []
+    try:
+        flat_val = dut.col_output.value.to_unsigned()
+    except ValueError:
+        return [0] * n
+    single_element_mask = (1 << width) - 1
+    for i in range(n):
+        shifted_val = flat_val >> (i * width)
+        val = shifted_val & single_element_mask
+        res.append(val)
+        
+    return res
+
+def send_input(dut, vals, N, width):
+    flat_vals = pack_input(vals, N, width)
+    dut.col_input.value = flat_vals
 
 @cocotb.test()
 async def test_output_skew_logic(dut):    
@@ -18,7 +40,7 @@ async def test_output_skew_logic(dut):
     dut.reset.value = 1
     dut.enable.value = 0
     
-    send_input(dut, vals=[0 for _ in range(N)], N=N)
+    send_input(dut, vals=[0 for _ in range(N)], N=N, width=RESULT_WIDTH)
 
     await RisingEdge(dut.clk)
     await RisingEdge(dut.clk)
@@ -47,14 +69,14 @@ async def test_output_skew_logic(dut):
         for i in range(N):
             cycle_inputs.append(col_inputs[i][t])
         
-        send_input(dut, cycle_inputs, N)
+        send_input(dut, cycle_inputs, N, RESULT_WIDTH)
 
         await RisingEdge(dut.clk)
 
+        actual_vals = read_skewed_output(dut, N, RESULT_WIDTH)
         if t > (N-1):
             for i in range(N):
-                actual_outputs[i].append(dut.col_output[i].value.to_unsigned())
-
+                actual_outputs[i].append(actual_vals[i])
 
     assert input_history == actual_outputs, "ERROR: NON-MATCHING INPUT and OUTPUT"
 

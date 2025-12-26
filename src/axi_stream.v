@@ -53,14 +53,14 @@ endmodule
 // axi-stream master
 module axi_stream_output #(
     parameter N = 4,
-    parameter result_width = 32
+    parameter RESULT_WIDTH = 32
 )(
     input wire clk,
     input wire reset,
-    input wire [N*result_width-1:0] out_buff_data,
+    input wire [N*RESULT_WIDTH-1:0] out_buff_data,
     input wire out_buff_enabled,
     output wire out_buff_enable_feedback,
-    output reg [N*result_width-1:0] tdata,
+    output reg [N*RESULT_WIDTH-1:0] tdata,
     output reg tvalid,
     input wire tready
 );
@@ -76,7 +76,7 @@ module axi_stream_output #(
     always @(posedge clk) begin
         if (reset) begin
             tvalid <= 1'b0;
-            tdata  <= {N*result_width{1'b0}};
+            tdata  <= {N*RESULT_WIDTH{1'b0}};
         end 
         else begin
             // clear the valid when the handshake occurs
@@ -122,7 +122,7 @@ module axi_stream_wrapper #(
 
     axi_stream_output #(
         .N(N),
-        .result_width(DATA_WIDTH)
+        .RESULT_WIDTH(DATA_WIDTH)
     ) master_inst (
         .clk(clk),
         .reset(reset),
@@ -136,7 +136,7 @@ module axi_stream_wrapper #(
 
     axi_stream_input #(
         .N(N),
-        .data_width(DATA_WIDTH)
+        .DATA_WIDTH(DATA_WIDTH)
     ) slave_inst (
         .clk(clk),
         .reset(reset),

@@ -1,6 +1,8 @@
 /*
 * Instantiate the entire grid of PEs and wire together appropriately
 */
+`timescale 1ns/1ps
+
 module grid #(
     parameter N = 4,
     parameter DATA_WIDTH = 8,
@@ -10,16 +12,19 @@ module grid #(
     input wire reset,
     input wire enable,
     input wire load_weight,
-    input wire [DATA_WIDTH-1:0] inputs_left [0:N-1],     
-    output wire [RESULT_WIDTH-1:0] sums_bottom [0:N-1]     
-);  
-    //assign the top level wires to the interconnect wires that will be used to instantiate the grid
-    wire [DATA_WIDTH-1:0] data_path_wires [0:N][0:N]; 
+    input wire [N*DATA_WIDTH-1:0] inputs_left,     
+    output wire [N*RESULT_WIDTH-1:0] sums_bottom     
+);
+
+    //unpack the input wires to map to rows    
+    //instantiate the interconnect wires
+    wire [DATA_WIDTH-1:0] data_path_wires [0:N][0:N];
     wire [RESULT_WIDTH-1:0] sum_path_wires [0:N][0:N];
     genvar i, j;
     generate
         for (i = 0; i < N; i = i + 1) begin : drive_left
-            assign data_path_wires[i][0] = inputs_left[i];
+            // Slice the flat input
+            assign data_path_wires[i][0] = inputs_left[(i*DATA_WIDTH) +: DATA_WIDTH];
         end
         for (j = 0; j < N; j = j + 1) begin : drive_top
             assign sum_path_wires[0][j] = 0;
@@ -49,9 +54,11 @@ module grid #(
         end
     endgenerate
 
+    //pack the output back into flattened bus wires
     generate
-        for (j=0; j<N; j=j+1) begin
-            assign sums_bottom[j] = sum_path_wires[N][j];
+        for (j = 0; j < N; j = j + 1) begin : pack_bottom
+            assign sums_bottom[(j*RESULT_WIDTH) +: RESULT_WIDTH] = sum_path_wires[N][j];
         end
     endgenerate
+
 endmodule

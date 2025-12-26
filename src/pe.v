@@ -7,6 +7,8 @@
 * 5. Pass the activation input to the right
 * 6. Pass the new sum below
 */
+`timescale 1ns/1ps
+
 module pe #(
     parameter DATA_WIDTH = 8,  
     parameter RESULT_WIDTH = 32 

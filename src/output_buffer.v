@@ -9,6 +9,8 @@
    The second column output needs to be passed through N-2 delay registers
    The last column output can be passed through
  */
+`timescale 1ns/1ps
+
 module output_buffer #(
     parameter N = 4,
     parameter RESULT_WIDTH = 32
@@ -16,41 +18,47 @@ module output_buffer #(
     input wire clk,
     input wire reset,
     input wire enable,
-    input wire [RESULT_WIDTH-1:0] col_input [0:N-1],
-    output wire [RESULT_WIDTH-1:0] col_output [0:N-1]
+    input wire [N*RESULT_WIDTH-1:0] col_input,
+    output wire [N*RESULT_WIDTH-1:0] col_output
 );
 
-    //deskew logic is similar to skew logic, just inverted 
-    genvar i,j;
+    genvar i;
     generate
-        for (i=0; i < N; i = i+1) begin : row
-            for (j=0; j < N-1-i; j = j+1) begin : stage
-                reg [RESULT_WIDTH-1:0] delay;
-                if (j==0) begin
-                    always @(posedge clk ) begin
-                        if (reset) delay <= {RESULT_WIDTH{1'b0}};
-                        else if (enable) delay <= col_input[i];
-                    end
-                end 
-                else begin
-                    always @(posedge clk ) begin
-                        if (reset) delay <= {RESULT_WIDTH{1'b0}};
-                        else if (enable) delay <= row[i].stage[j-1].delay;
-                    end
-                end
-            end
-
-            // output register for each row
-            //updates on the clk which enforces alignment to the clk signal
+        for (i = 0; i < N; i = i + 1) begin : row
+            
             reg [RESULT_WIDTH-1:0] output_reg;
-            always @(posedge clk) begin
-                if (reset) output_reg <= {RESULT_WIDTH{1'b0}};
-                else if (enable) begin
-                    if (i==(N-1)) output_reg <= col_input[N-1];  
-                    else output_reg <= row[i].stage[N-2-i].delay;
+            wire [RESULT_WIDTH-1:0] row_in_val;
+
+            assign row_in_val = col_input[(i*RESULT_WIDTH) +: RESULT_WIDTH];
+
+            if (i == N-1) begin : direct_pass
+                always @(posedge clk) begin
+                    if (reset) output_reg <= {RESULT_WIDTH{1'b0}};
+                    else if (enable) output_reg <= row_in_val;
+                end
+            end 
+            else begin : delayed_pass
+                localparam DEPTH = N - 1 - i;
+                reg [RESULT_WIDTH-1:0] shift_reg [0:DEPTH-1];
+                integer k;
+
+                always @(posedge clk) begin
+                    if (reset) begin
+                        output_reg <= {RESULT_WIDTH{1'b0}};
+                        for (k = 0; k < DEPTH; k = k + 1) begin
+                            shift_reg[k] <= {RESULT_WIDTH{1'b0}};
+                        end
+                    end 
+                    else if (enable) begin
+                        shift_reg[0] <= row_in_val;
+                        for (k = 1; k < DEPTH; k = k + 1) begin
+                            shift_reg[k] <= shift_reg[k-1];
+                        end
+                        output_reg <= shift_reg[DEPTH-1];
+                    end
                 end
             end
-            assign col_output[i] = output_reg;
+            assign col_output[(i*RESULT_WIDTH) +: RESULT_WIDTH] = output_reg;
         end
     endgenerate
 endmodule

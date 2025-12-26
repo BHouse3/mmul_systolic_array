@@ -4,10 +4,6 @@ from cocotb.triggers import RisingEdge
 import random
 
 def pack_input(row_values, n, width):
-    """
-    Packs a list of N integers into a single flat integer for 'streamed_input'.
-    Format: Row 0 is LSB, Row N-1 is MSB.
-    """
     flat_val = 0
     mask = (1 << width) - 1
     for i in range(n):
@@ -15,15 +11,18 @@ def pack_input(row_values, n, width):
         flat_val |= (val << (i * width))
     return flat_val
 
-def read_skewed_output(dut, n):
-    """Reads the unpacked output array."""
+def read_skewed_output(dut, n, width):
     res = []
+    try:
+        flat_val = dut.skewed_output.value.to_unsigned()
+    except ValueError:
+        return [0] * n
+    single_element_mask = (1 << width) - 1
     for i in range(n):
-        try:
-            val = dut.skewed_output[i].value.to_unsigned()
-            res.append(val)
-        except ValueError:
-            res.append(0)
+        shifted_val = flat_val >> (i * width)
+        val = shifted_val & single_element_mask
+        res.append(val)
+        
     return res
 
 
@@ -68,7 +67,7 @@ async def test_input_skew_logic(dut):
         await RisingEdge(dut.clk)
         
         
-        actual_output = read_skewed_output(dut, N)
+        actual_output = read_skewed_output(dut, N, DATA_WIDTH)
         
         dut._log.info(f"Output at cycle {t}:\n {actual_output}")
 
@@ -83,11 +82,11 @@ async def test_input_skew_logic(dut):
     
     await RisingEdge(dut.clk)
 
-    pre_pause_output = read_skewed_output(dut, N)
+    pre_pause_output = read_skewed_output(dut, N, DATA_WIDTH)
 
     await RisingEdge(dut.clk)
 
-    curr_output = read_skewed_output(dut, N)
+    curr_output = read_skewed_output(dut, N, DATA_WIDTH)
 
     assert curr_output == pre_pause_output, "ERROR: Values still moving during low enable"
 

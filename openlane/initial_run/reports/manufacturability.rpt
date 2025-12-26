@@ -1,0 +1,19 @@
+Design Name: top_hardened
+Run Directory: /openlane/designs/tpu/runs/init
+----------------------------------------
+
+Magic DRC Summary:
+Source: /openlane/designs/tpu/runs/init/reports/signoff/drc.rpt
+Total Magic DRC violations is 0
+----------------------------------------
+
+LVS Summary:
+Source: /openlane/designs/tpu/runs/init/logs/signoff/39-top_hardened.lef.lvs.log
+Number of nets: 14235                      |Number of nets: 14235                      
+Design is LVS clean.
+----------------------------------------
+
+Antenna Summary:
+Source: /openlane/designs/tpu/runs/init/logs/signoff/41-arc.log
+Pin violations: 28
+Net violations: 27
