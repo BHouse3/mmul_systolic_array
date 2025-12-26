@@ -1,6 +1,0 @@
-<< properties >>
-string FIXED_BBOX 0 0 135714 137858
-string GDS_END 35635690
-string GDS_FILE /openlane/designs/tpu/runs/init/results/signoff/top_hardened.magic.gds
-string GDS_START 1206826
-<< end >>
